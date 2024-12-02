@@ -1,7 +1,5 @@
 # Custom Bootloader development for STM32F407
 
-Note: Udemy Course by Fastbit Embedded Academy
-
 
 # Initial Steps
 
