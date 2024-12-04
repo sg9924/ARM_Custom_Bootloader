@@ -21,7 +21,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include<stdio.h>
+#include<stdarg.h>
+#include<string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +38,9 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+//enable this macro for debug messages over UART3
+#define DEBUG_MSG_EN
+#define DEBUG_UART &huart3
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -55,9 +59,24 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_CRC_Init(void);
-/* USER CODE BEGIN PFP */
 
+/* USER CODE BEGIN PFP */
+static void print_msg(char *format,...);
 /* USER CODE END PFP */
+
+static void print_msg(char *format,...)
+ {
+#ifdef DEBUG_MSG_EN
+	char msg[100];
+
+	/*Extract the the argument list using VA apis */
+	va_list args;
+	va_start(args, format);
+	vsprintf(msg, format,args);
+	HAL_UART_Transmit(DEBUG_UART,(uint8_t *)msg, strlen(msg),HAL_MAX_DELAY);
+	va_end(args);
+#endif
+ }
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
