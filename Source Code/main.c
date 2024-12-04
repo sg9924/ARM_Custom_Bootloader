@@ -18,12 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f407xx.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include<stdio.h>
 #include<stdarg.h>
 #include<string.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,7 +42,9 @@
 /* USER CODE BEGIN PM */
 //enable this macro for debug messages over UART3
 #define DEBUG_MSG_EN
-#define DEBUG_UART &huart3
+#define DEBUG_UART &huart3  //Debug UART
+#define VCOM_UART  &huart2  //Virtual COM UART
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -62,21 +66,10 @@ static void MX_CRC_Init(void);
 
 /* USER CODE BEGIN PFP */
 static void print_msg(char *format,...);
+void bootloader_uart_read_data(void);
+void bootloader_jump_to_user_app(void);
+
 /* USER CODE END PFP */
-
-static void print_msg(char *format,...)
- {
-#ifdef DEBUG_MSG_EN
-	char msg[100];
-
-	/*Extract the the argument list using VA apis */
-	va_list args;
-	va_start(args, format);
-	vsprintf(msg, format,args);
-	HAL_UART_Transmit(DEBUG_UART,(uint8_t *)msg, strlen(msg),HAL_MAX_DELAY);
-	va_end(args);
-#endif
- }
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
@@ -115,7 +108,24 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
   MX_CRC_Init();
+	
   /* USER CODE BEGIN 2 */
+	
+	/* If button is pressed -> go to bootloader, if not pressed -> go to user application */
+  if (HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin) == GPIO_PIN_RESET)
+  {
+	  print_msg("[Debug]: User Button is pressed -> Going into Bootloader....\n\r");
+
+	  //continue in bootloader mode
+	  bootloader_uart_read_data();
+  }
+  else
+  {
+	  print_msg("[Debug]: User Button is not pressed -> Entering User Application....\n\r");
+	  
+		//Jump to User Application
+		bootloader_jump_to_user_app();
+  }
 
   /* USER CODE END 2 */
 
@@ -126,6 +136,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		
+		uint32_t cur_tick = HAL_GetTick();
+		print_msg("Current Tick Value = %d\r\n", cur_tick);
+		while(HAL_GetTick()<= (cur_tick+500)); //delay using systick
   }
   /* USER CODE END 3 */
 }
@@ -288,12 +302,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  //HAL_GPIO_WritePin(CS_I2C_SPI_GPIO_Port, CS_I2C_SPI_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  //HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
@@ -309,9 +317,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -349,3 +354,23 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+
+/* Custom Function Definitions Start */
+
+//1. custom print function to print debug messages over UART3
+static void print_msg(char *format,...)
+ {
+#ifdef DEBUG_MSG_EN
+	char msg[100];
+
+	/*Extract the the argument list using VA apis */
+	va_list args;
+	va_start(args, format);
+	vsprintf(msg, format,args);
+	HAL_UART_Transmit(DEBUG_UART,(uint8_t *)msg, strlen(msg),HAL_MAX_DELAY);
+	va_end(args);
+#endif
+ }
+
+ /* Custom Function Definitions End */
