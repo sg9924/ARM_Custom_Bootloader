@@ -73,7 +73,8 @@ void bootloader_jump_to_user_app(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+#define BL_RX_LEN  200
+uint8_t bl_rx_buffer[BL_RX_LEN];
 /* USER CODE END 0 */
 
 /**
@@ -373,8 +374,8 @@ static void print_msg(char *format,...)
 #endif
  }
 
- //2. Bootloader Command Handler
- //Read and decode commands from Host
+//2. Bootloader Command Handler
+//Read and decode commands from Host
  void  bootloader_uart_read_data(void)
 {
     uint8_t rcv_len=0;
@@ -383,16 +384,16 @@ static void print_msg(char *format,...)
 	{
 		memset(bl_rx_buffer,0,200);
 		//read first byte from Host - Length of the packet
-    HAL_UART_Receive(C_UART,bl_rx_buffer,1,HAL_MAX_DELAY);
+    HAL_UART_Receive(VCOM_UART,bl_rx_buffer,1,HAL_MAX_DELAY);
 		rcv_len= bl_rx_buffer[0];
 
     //read second byte of the packet - Command Code
-		HAL_UART_Receive(C_UART,&bl_rx_buffer[1],rcv_len,HAL_MAX_DELAY);
+		HAL_UART_Receive(VCOM_UART,&bl_rx_buffer[1],rcv_len,HAL_MAX_DELAY);
 
 		switch(bl_rx_buffer[1])
 		{
              default:
-                printmsg("BL_DEBUG_MSG:Invalid command code received from host \n");
+                print_msg("[Debug]: Invalid command code received from host \n");
                 break;
 		}
 	}
