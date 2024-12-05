@@ -96,4 +96,10 @@ void Error_Handler(void);
 }
 #endif
 
+/* Custom Function prototypes*/
+//1. Bootloader functions
+void bootloader_uart_read_data(void);
+void bootloader_jump_to_user_app(void);
+
+
 #endif /* __MAIN_H */
