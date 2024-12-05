@@ -399,4 +399,30 @@ static void print_msg(char *format,...)
 	}
 }
 
+//3. Jump to User Application Function
+void bootloader_jump_to_user_app(void)
+{
+	//function pointer to hold reset handler of User Application
+  void (*app_reset_handler)(void);
+	
+	print_msg("[Debug]: bootloader_jump_to_user_app\n");
+	
+	//1. Configure MSP by reading value from the base address of Flash sector 2
+  uint32_t msp_value = *(volatile uint32_t *)FLASH_SECTOR2_BASE_ADDRESS;
+  print_msg("[Debug]: MSP value: %#x\n",msp_value);
+	
+	//2. set MSP via CMSIS function
+  __set_MSP(msp_value);
+	
+	//3. Fetch reset handler address from the 2nd address of Flash Sector 2
+	uint32_t resethandler_address = *(volatile uint32_t *) (FLASH_SECTOR2_BASE_ADDRESS+4);
+	
+	//4. assign reset handler address to function pointer we defined
+	app_reset_handler = (void*) resethandler_address;
+	print_msg("[Debug]: User App Reset Handler Address: %#x\n",app_reset_handler);
+	
+	//5. call the user application reset handler
+	app_reset_handler();
+}
+
  /* Custom Function Definitions End */

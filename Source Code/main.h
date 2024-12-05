@@ -89,6 +89,7 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
+#define FLASH_SECTOR2_BASE_ADDRESS 0x08008000U
 
 /* USER CODE END Private defines */
 
