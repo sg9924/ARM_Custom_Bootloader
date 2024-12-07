@@ -374,11 +374,12 @@ static void print_msg(char *format,...)
 #endif
  }
 
+ 
 //2. Bootloader Command Handler
 //Read and decode commands from Host
  void  bootloader_uart_read_data(void)
 {
-    uint8_t rcv_len=0;
+  uint8_t rcv_len=0;
 
 	while(1)
 	{
@@ -392,14 +393,27 @@ static void print_msg(char *format,...)
 
 		switch(bl_rx_buffer[1])
 		{
-             default:
-                print_msg("[Debug]: Invalid command code received from host \n");
-                break;
+			case BL_GET_VER:
+				bootloader_handle_getver_cmd(bl_rx_buffer);
+				break;
+			
+      default:
+        print_msg("[Debug]: Invalid command code received from host...\n");
+        break;
 		}
 	}
 }
 
-//3. Jump to User Application Function
+
+//3. Bootloader read data
+void bootloader_uart_write_data(uint8_t *pBuffer,uint32_t len)
+{
+    /*you can replace the below ST's USART driver API call with your MCUs driver API call */
+	HAL_UART_Transmit(VCOM_UART,pBuffer,len,HAL_MAX_DELAY);
+
+}
+
+//4. Jump to User Application
 void bootloader_jump_to_user_app(void)
 {
 	//function pointer to hold reset handler of User Application
@@ -424,5 +438,99 @@ void bootloader_jump_to_user_app(void)
 	//5. call the user application reset handler
 	app_reset_handler();
 }
+	
+	
+	
+//Helper functions start
+//1. Verify CRC
+uint8_t bootloader_verify_crc(uint8_t *pData, uint32_t len, uint32_t crc_host)
+{
+    uint32_t uwCRCValue=0xff;
 
- /* Custom Function Definitions End */
+		//accumulate each CRC byte
+    for(uint32_t i=0; i<len; i++)
+		{
+        uint32_t i_data = pData[i];
+        uwCRCValue = HAL_CRC_Accumulate(&hcrc, &i_data, 1);
+		}
+
+	 //Reset CRC Calculation Unit (HAL function)
+  __HAL_CRC_DR_RESET(&hcrc);
+
+	//check if the hist CRc and the CRC of the data received are same or not
+	if(uwCRCValue == crc_host)
+		return VERIFY_CRC_SUCCESS;
+
+	return VERIFY_CRC_FAIL;
+}
+
+//2. Sending ACK
+void bootloader_send_ack(uint8_t command_code, uint8_t follow_len)
+{
+	//sending 2 bytes -> ACK + length to follow
+	uint8_t ack_buf[2];
+	ack_buf[0] = BL_ACK;
+	ack_buf[1] = follow_len;
+	HAL_UART_Transmit(VCOM_UART,ack_buf,2,HAL_MAX_DELAY);
+}
+
+
+//3. Sending NACK
+void bootloader_send_nack(void)
+{
+	uint8_t nack = BL_NACK;
+	HAL_UART_Transmit(VCOM_UART,&nack,1,HAL_MAX_DELAY);
+}
+
+
+//4. get bootloader version value
+uint8_t get_bootloader_version(void)
+{
+  return (uint8_t)BL_VERSION;
+}
+	
+//Helper functions end
+	
+	
+	
+//Bootloader Command functions start
+
+//1. Get Bootloader Version
+	void bootloader_handle_getver_cmd(uint8_t *bl_rx_buffer)
+{
+    uint8_t bl_version;
+
+      print_msg("[Debug]: bootloader_handle_getver_cmd\n");
+
+	  //getting total length of the packet -> length to follow + 1
+	  uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	  //Extract CRC32 sent by the Host Application
+	  uint32_t host_crc = *((uint32_t*) (bl_rx_buffer + command_packet_len - 4)) ;
+
+		//CRC is successfull
+    if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+    {
+        print_msg("[Debug]: Checksum Success!!\n");
+        //Sending ACk as checksum is correct
+        bootloader_send_ack(bl_rx_buffer[0],1);
+			
+				//get bootloader version
+        bl_version=get_bootloader_version();
+			
+        print_msg("[Debug]: BL_VER -> %d %#x\n",bl_version,bl_version);
+			
+				//send the bootloader version number to Host Application
+        bootloader_uart_write_data(&bl_version,1);
+    }
+		else //CRC is a failure
+    {
+        print_msg("[Debug]: Checksum Fail...\n");
+			
+        //Sending NACK as checksum is wrong
+        bootloader_send_nack();
+    }
+}
+	
+//Bootloader Command function end
+/* Custom Function Definitions End */
