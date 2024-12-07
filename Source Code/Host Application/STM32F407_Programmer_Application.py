@@ -25,3 +25,24 @@ COMMAND_BL_GET_HELP_LEN                             =6
 
 verbose_mode       =1
 mem_write_active   =0
+
+
+#----------------------------- CRC ------------------------------------------------
+#conver word to byte
+def word_to_byte(addr, index , lowerfirst):
+    value = (addr >> (8 * (index -1)) & 0x000000FF)
+    return value
+
+#CRc calculation
+def get_crc(buff, length):
+    crc = 0xFFFFFFFF
+
+    for data in buff[0:length]:
+        crc = crc ^ data
+        for i in range(32):
+            if(crc & 0x80000000):
+                crc = (crc << 1) ^ 0x04C11DB7
+            else:
+                crc = (crc << 1)
+    return crc
+#----------------------------------------------------------------------------------
