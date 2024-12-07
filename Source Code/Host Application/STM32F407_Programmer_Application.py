@@ -237,3 +237,39 @@ def decode_menu_command_code(command):
         print("\n[ERROR]: TimeOut, No Response from Bootloader")
         return
 #----------------------------------------------------------------------------------
+
+
+#--------------------------- Command Menu implementation---------------------------
+name = input("Enter the Port Name of your device(Example -> COM3):")
+ret = 0
+
+#process Port name
+ret=Serial_Port_Configuration(name)
+
+#Hanling invalid port name
+if(ret < 0):
+    decode_menu_command_code(0)
+    
+
+while True:
+    print("\n|*******************************************|")
+    print("|                 Menu                      |")
+    print("|         STM32F407 BootLoader v1           |")
+    print("|*******************************************|")
+
+  
+    
+    print("\nPlease select the bootloader command to send\n")
+    print("BL_GET_VER --> 1")
+    print("BL_GET_HLP --> 2")
+
+    command_code = input("\n[INPUT]: Please Enter the command code,")
+
+    if(not command_code.isdigit()):
+        print("\n[ERROR]: Please enter valid command!!")
+    else:
+        decode_menu_command_code(int(command_code))
+
+    input("\n[INFO]: Press any key to continue")
+    purge_serial_port()
+#----------------------------------------------------------------------------------
