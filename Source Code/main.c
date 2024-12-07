@@ -400,6 +400,12 @@ static void print_msg(char *format,...)
 			case BL_GET_VER:
 				bootloader_handle_getver_cmd(bl_rx_buffer);
 				break;
+      case BL_GET_HELP:
+                bootloader_handle_gethelp_cmd(bl_rx_buffer);
+                break;
+      case BL_GET_CID:
+                bootloader_handle_getcid_cmd(bl_rx_buffer);
+                break;
 			
       default:
         print_msg("[Debug]: Invalid command code received from host...\n");
@@ -492,13 +498,21 @@ uint8_t get_bootloader_version(void)
 {
   return (uint8_t)BL_VERSION;
 }
+
+
+//5. get MCU Chip ID
+uint16_t get_mcu_chip_id(void)
+{
+	uint16_t cid;
+	cid = (uint16_t)(DBGMCU->IDCODE) & 0x0FFF;
+	return  cid;
+}
 	
 //Helper functions end
 	
 	
 	
 //Bootloader Command functions start
-
 //1. Get Bootloader Version
 	void bootloader_handle_getver_cmd(uint8_t *bl_rx_buffer)
 {
@@ -567,6 +581,41 @@ void bootloader_handle_gethelp_cmd(uint8_t *pBuffer)
         bootloader_send_nack();
 	}
 }
-	
+
+
+//3. Get CID
+void bootloader_handle_getcid_cmd(uint8_t *pBuffer)
+{
+	uint16_t bl_cid_num = 0;
+	print_msg("[Debug]:bootloader_handle_getcid_cmd\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4)) ;
+
+	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+        print_msg("[Debug]: Checksum Success!!\n");
+        //Sending ACK as checksum is correct
+        bootloader_send_ack(pBuffer[0],2);
+
+        //get MCU Chip ID
+        bl_cid_num = get_mcu_chip_id();
+
+        print_msg("[Debug]: MCU ID : %d %#x !!\n",bl_cid_num, bl_cid_num);
+
+        //send the cid number to the Host Application
+        bootloader_uart_write_data((uint8_t *)&bl_cid_num,2);
+	}
+  else //CRC is a failure
+	{
+        print_msg("[Debug]: Checksum Fail..\n");
+
+        //Sending NACK as checksum is wrong
+        bootloader_send_nack();
+	}
+}
 //Bootloader Command function end
 /* Custom Function Definitions End */

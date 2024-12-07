@@ -102,8 +102,9 @@ void Error_Handler(void);
 #define BL_NACK  0X7F
 
 //Bootloader Command definition
-#define BL_GET_VER				0x51
+#define BL_GET_VER				      0x51
 #define BL_GET_HELP				      0x52
+#define BL_GET_CID				      0x53
 
 /* USER CODE END Private defines */
 
