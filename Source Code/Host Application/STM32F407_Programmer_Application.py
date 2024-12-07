@@ -127,4 +127,113 @@ def process_COMMAND_BL_GET_HELP(length):
     for x in reply:
         print(hex(x),end=' ')
     print()
-#------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------
+
+
+#--------------------------- Process Bootloader Reply -----------------------------
+def read_bootloader_reply(command_code):
+    len_to_follow = 0 
+    ret = -2 
+
+    ack = read_serial_port(2)
+
+    if(len(ack)):
+        a_array=bytearray(ack)
+        #if ACK
+        if (a_array[0] == 0xA5):
+
+            len_to_follow=a_array[1]
+            print("\n[INFO]: CRC was successfull, Length -> ",len_to_follow)
+
+            if (command_code) == COMMAND_BL_GET_VER:
+                process_COMMAND_BL_GET_VER(len_to_follow)
+                
+            elif(command_code) == COMMAND_BL_GET_HELP:
+                process_COMMAND_BL_GET_HELP(len_to_follow)
+            else:
+                print("\n[ERROR]: Invalid Command Code!!\n")
+                
+            ret = 0
+        #if NACK
+        elif a_array[0] == 0x7F:
+            print("\n[ERROR]: CRC Failure\n")
+            ret= -1
+    else:
+        print("\n[ERROR]: Timeout, Bootloader not responding!!")
+    return ret
+#----------------------------------------------------------------------------------
+
+
+#----------------------------- Decode Menu Command --------------------------------
+def decode_menu_command_code(command):
+    ret_value = 0
+    data_buf = []
+    for i in range(255):
+        data_buf.append(0)
+    
+    if(command  == 0 ):
+        print("\n[ERROR]: Exiting!!")
+        raise SystemExit
+    
+    elif(command == 1):
+        #Packet format --> |_{length to follow}[1 byte]_|_{CMD Code}[1 byte]_|_{Host CRC Value}[4 bytes]_|
+
+        print("\n[INFO]: Command -> BL_GET_VER")
+
+        data_buf[0] = COMMAND_BL_GET_VER_LEN-1 #length to follow
+        data_buf[1] = COMMAND_BL_GET_VER       #bootloader command code
+
+        crc32 = get_crc(data_buf,COMMAND_BL_GET_VER_LEN-4)
+        crc32 = crc32 & 0xffffffff
+
+        #CRC value
+        data_buf[2] = word_to_byte(crc32,1,1) 
+        data_buf[3] = word_to_byte(crc32,2,1) 
+        data_buf[4] = word_to_byte(crc32,3,1) 
+        data_buf[5] = word_to_byte(crc32,4,1) 
+
+        #send length to follow
+        Write_to_serial_port(data_buf[0],1)
+
+        #send rest of the packet (command code & CRC)
+        for i in data_buf[1:COMMAND_BL_GET_VER_LEN]:
+            Write_to_serial_port(i,COMMAND_BL_GET_VER_LEN-1)
+        
+        #get bootloader reply
+        ret_value = read_bootloader_reply(data_buf[1])
+
+    elif(command == 2):
+        #Packet format --> |_{length to follow}[1 byte]_|_{CMD Code}[1 byte]_|_{Host CRC Value}[4 bytes]_|
+
+        print("\n[INFO]: Command -> BL_GET_HELP")
+
+        data_buf[0] = COMMAND_BL_GET_HELP_LEN-1  #length to follow
+        data_buf[1] = COMMAND_BL_GET_HELP        #bootloader command code
+
+        crc32 = get_crc(data_buf,COMMAND_BL_GET_HELP_LEN-4)
+        crc32 = crc32 & 0xffffffff
+
+        #CRC value
+        data_buf[2] = word_to_byte(crc32,1,1) 
+        data_buf[3] = word_to_byte(crc32,2,1) 
+        data_buf[4] = word_to_byte(crc32,3,1) 
+        data_buf[5] = word_to_byte(crc32,4,1) 
+
+        #send length to follow
+        Write_to_serial_port(data_buf[0],1)
+
+        #send rest of the packet (command code & CRC)
+        for i in data_buf[1:COMMAND_BL_GET_HELP_LEN]:
+            Write_to_serial_port(i,COMMAND_BL_GET_HELP_LEN-1)
+        
+        #get bootloader reply
+        ret_value = read_bootloader_reply(data_buf[1])
+
+    else:
+        print("\n[ERROR]: Please Enter valid command code\n")
+        return
+
+    if ret_value == -2 :
+        print("\n[ERROR]: TimeOut, No Response from Bootloader")
+        return
+#----------------------------------------------------------------------------------
