@@ -53,6 +53,10 @@ CRC_HandleTypeDef hcrc;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
+uint8_t supported_commands[] = {
+                               BL_GET_VER ,
+                               BL_GET_HELP}
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -512,7 +516,7 @@ uint8_t get_bootloader_version(void)
     if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
     {
         print_msg("[Debug]: Checksum Success!!\n");
-        //Sending ACk as checksum is correct
+        //Sending ACK as checksum is correct
         bootloader_send_ack(bl_rx_buffer[0],1);
 			
 				//get bootloader version
@@ -530,6 +534,38 @@ uint8_t get_bootloader_version(void)
         //Sending NACK as checksum is wrong
         bootloader_send_nack();
     }
+}
+
+
+//2. Get Help
+void bootloader_handle_gethelp_cmd(uint8_t *pBuffer)
+{
+    print_msg("[Debug]: bootloader_handle_gethelp_cmd\n");
+
+	//getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4)) ;
+
+  //CRC is successfull
+	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+        print_msg("[Debug]: Checksum Success!!\n");
+        //Sending ACK as checksum is correct
+        bootloader_send_ack(pBuffer[0],sizeof(supported_commands));
+
+        //send the supported Bootloader commands to the Host Application
+        bootloader_uart_write_data(supported_commands,sizeof(supported_commands) );
+
+	}
+  else //CRC is a failure
+	{
+        print_msg("[Debug]: Checksum Fail..\n");
+
+        //Sending NACK as checksum is wrong
+        bootloader_send_nack();
+	}
 }
 	
 //Bootloader Command function end

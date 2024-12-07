@@ -103,6 +103,7 @@ void Error_Handler(void);
 
 //Bootloader Command definition
 #define BL_GET_VER				0x51
+#define BL_GET_HELP				      0x52
 
 /* USER CODE END Private defines */
 
@@ -126,6 +127,7 @@ uint8_t get_bootloader_version(void);
 
 //3. Bootloader Handle Command Functions
 void bootloader_handle_getver_cmd(uint8_t *bl_rx_buffer);
+void bootloader_handle_gethelp_cmd(uint8_t *bl_rx_buffer);
 
 
 #endif /* __MAIN_H */
