@@ -110,3 +110,21 @@ def Write_to_serial_port(value, *length):
                 print("#",end=' ')
         ser.write(data)
 #----------------------------------------------------------------------------------
+
+
+#----------------------------- Command Processing ---------------------------------
+#1. Get Bootloader Version
+def process_COMMAND_BL_GET_VER(length):
+    ver=read_serial_port(1)
+    value = bytearray(ver)
+    print("\n[BL_CMD]: Bootloader Version -> ",hex(value[0]))
+
+#2. Get Help
+def process_COMMAND_BL_GET_HELP(length):
+    value = read_serial_port(length) 
+    reply = bytearray(value)
+    print("\n[BL_CMD]: Supported Commands are,",end=' ')
+    for x in reply:
+        print(hex(x),end=' ')
+    print()
+#------------------------------------------------------------------------------
