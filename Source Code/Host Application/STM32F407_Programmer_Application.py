@@ -112,6 +112,27 @@ def Write_to_serial_port(value, *length):
 #----------------------------------------------------------------------------------
 
 
+#----------------------------- File Operations ----------------------------------------
+#calculating file size
+def calc_file_len():
+    size = os.path.getsize("user_app.bin")
+    return size
+
+#opening the binary file
+def open_the_file():
+    global bin_file
+    bin_file = open('user_app.bin','rb')
+
+#reading the binary file
+def read_the_file():
+    pass
+
+#closing the binary file
+def close_the_file():
+    bin_file.close()
+#------------------------------------------------------------------------------------
+
+
 #----------------------------- Command Processing ---------------------------------
 #1. Get Bootloader Version
 def process_COMMAND_BL_GET_VER(length):
