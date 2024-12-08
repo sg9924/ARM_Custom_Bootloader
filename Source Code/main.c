@@ -406,6 +406,9 @@ static void print_msg(char *format,...)
       case BL_GET_CID:
                 bootloader_handle_getcid_cmd(bl_rx_buffer);
                 break;
+      case BL_GET_RDP_STATUS:
+                bootloader_handle_getrdp_cmd(bl_rx_buffer);
+                break;
 			
       default:
         print_msg("[Debug]: Invalid command code received from host...\n");
@@ -507,6 +510,24 @@ uint16_t get_mcu_chip_id(void)
 	cid = (uint16_t)(DBGMCU->IDCODE) & 0x0FFF;
 	return  cid;
 }
+
+
+//6. get flash RDP status
+uint8_t get_flash_rdp_level(void)
+{
+
+	uint8_t rdp_status=0;
+  #if 0
+	  FLASH_OBProgramInitTypeDef  ob_handle;
+	  HAL_FLASHEx_OBGetConfig(&ob_handle);
+	  rdp_status = (uint8_t)ob_handle.RDPLevel;
+  #else
+	 volatile uint32_t *pOB_addr = (uint32_t*) 0x1FFFC000;
+	 rdp_status =  (uint8_t)(*pOB_addr >> 8) ;
+  #endif
+
+	return rdp_status;
+}
 	
 //Helper functions end
 	
@@ -565,20 +586,20 @@ void bootloader_handle_gethelp_cmd(uint8_t *pBuffer)
   //CRC is successfull
 	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
-        print_msg("[Debug]: Checksum Success!!\n");
-        //Sending ACK as checksum is correct
-        bootloader_send_ack(pBuffer[0],sizeof(supported_commands));
+    print_msg("[Debug]: Checksum Success!!\n");
+    //Sending ACK as checksum is correct
+    bootloader_send_ack(pBuffer[0],sizeof(supported_commands));
 
-        //send the supported Bootloader commands to the Host Application
-        bootloader_uart_write_data(supported_commands,sizeof(supported_commands) );
+    //send the supported Bootloader commands to the Host Application
+    bootloader_uart_write_data(supported_commands,sizeof(supported_commands) );
 
 	}
   else //CRC is a failure
 	{
-        print_msg("[Debug]: Checksum Fail..\n");
+    print_msg("[Debug]: Checksum Fail..\n");
 
-        //Sending NACK as checksum is wrong
-        bootloader_send_nack();
+    //Sending NACK as checksum is wrong
+    bootloader_send_nack();
 	}
 }
 
@@ -587,7 +608,7 @@ void bootloader_handle_gethelp_cmd(uint8_t *pBuffer)
 void bootloader_handle_getcid_cmd(uint8_t *pBuffer)
 {
 	uint16_t bl_cid_num = 0;
-	print_msg("[Debug]:bootloader_handle_getcid_cmd\n");
+	print_msg("[Debug]: bootloader_handle_getcid_cmd\n");
 
   //getting total length of the packet -> length to follow + 1
 	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
@@ -597,25 +618,62 @@ void bootloader_handle_getcid_cmd(uint8_t *pBuffer)
 
 	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
-        print_msg("[Debug]: Checksum Success!!\n");
-        //Sending ACK as checksum is correct
-        bootloader_send_ack(pBuffer[0],2);
+    print_msg("[Debug]: Checksum Success!!\n");
+    //Sending ACK as checksum is correct
+    bootloader_send_ack(pBuffer[0],2);
 
-        //get MCU Chip ID
-        bl_cid_num = get_mcu_chip_id();
+    //get MCU Chip ID
+    bl_cid_num = get_mcu_chip_id();
 
-        print_msg("[Debug]: MCU ID : %d %#x !!\n",bl_cid_num, bl_cid_num);
+    print_msg("[Debug]: MCU ID : %d %#x !!\n",bl_cid_num, bl_cid_num);
 
-        //send the cid number to the Host Application
-        bootloader_uart_write_data((uint8_t *)&bl_cid_num,2);
+    //send the cid number to the Host Application
+    bootloader_uart_write_data((uint8_t *)&bl_cid_num,2);
 	}
   else //CRC is a failure
 	{
-        print_msg("[Debug]: Checksum Fail..\n");
+    print_msg("[Debug]: Checksum Fail..\n");
 
-        //Sending NACK as checksum is wrong
-        bootloader_send_nack();
+    //Sending NACK as checksum is wrong
+    bootloader_send_nack();
 	}
 }
+
+
+//4. Get RDP Status
+void bootloader_handle_getrdp_cmd(uint8_t *pBuffer)
+{
+    uint8_t rdp_level = 0x00;
+    print_msg("[Debug]: bootloader_handle_getrdp_cmd\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*)(bl_rx_buffer+command_packet_len - 4)) ;
+
+	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]: Checksum Success!!\n");
+    //Sending ACK as checksum is correct
+    bootloader_send_ack(pBuffer[0],1);
+
+    //get flash RDP level
+    rdp_level = get_flash_rdp_level();
+
+    print_msg("[Debug]: RDP level -> %d %#x\n",rdp_level,rdp_level);
+
+    //send the flash rdp status to the Host Application
+    bootloader_uart_write_data(&rdp_level,1);
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: Checksum Fail!..\n");
+
+    //Sending NACK as checksum is wrong
+    bootloader_send_nack();
+	}
+}
+
 //Bootloader Command function end
 /* Custom Function Definitions End */
