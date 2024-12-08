@@ -557,9 +557,9 @@ uint8_t execute_flash_erase(uint8_t sector_number , uint8_t number_of_sector)
 		}
     else
 		{
-			uint8_t remanining_sector = 8 - sector_number;
-      if(number_of_sector > remanining_sector)
-        number_of_sector = remanining_sector;
+			uint8_t remaining_sector = 8 - sector_number;
+      if(number_of_sector > remaining_sector)
+        number_of_sector = remaining_sector;
 
 			flashErase_handle.TypeErase = FLASH_TYPEERASE_SECTORS;
 			flashErase_handle.Sector = sector_number; //initial sector

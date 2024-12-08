@@ -89,39 +89,44 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-#define FLASH_SECTOR2_BASE_ADDRESS 0x08008000U
+#define FLASH_SECTOR2_BASE_ADDRESS    0x08008000U
 
-#define BL_VERSION 0x10
+#define BL_VERSION                    0x10
 
 //CRC
-#define VERIFY_CRC_FAIL    1
-#define VERIFY_CRC_SUCCESS 0
+#define VERIFY_CRC_FAIL               1
+#define VERIFY_CRC_SUCCESS            0
 
 //ACK & NACK
-#define BL_ACK   0XA5
-#define BL_NACK  0X7F
+#define BL_ACK                        0XA5
+#define BL_NACK                       0X7F
+
+#define ADDR_VALID                    0x00
+#define ADDR_INVALID                  0x01
+
+#define INVALID_SECTOR                0x04
 
 //RAM
-#define SRAM1_SIZE             112*1024                   //112KB
-#define SRAM1_END              (SRAM1_BASE + SRAM1_SIZE)
-#define SRAM2_SIZE             16*1024                    //16KB
-#define SRAM2_END              (SRAM2_BASE + SRAM2_SIZE)
-#define FLASH_SIZE             512*1024                   //512KB
-#define BKPSRAM_SIZE           4*1024                     //4KB
-#define BKPSRAM_END            (BKPSRAM_BASE + BKPSRAM_SIZE)
+#define SRAM1_SIZE                    112*1024                       //112KB
+#define SRAM1_END                     (SRAM1_BASE + SRAM1_SIZE)
+#define SRAM2_SIZE                    16*1024                        //16KB
+#define SRAM2_END                     (SRAM2_BASE + SRAM2_SIZE)
+#define FLASH_SIZE                    512*1024                       //512KB
+#define BKPSRAM_SIZE                  4*1024                         //4KB
+#define BKPSRAM_END                   (BKPSRAM_BASE + BKPSRAM_SIZE)
 
 //Bootloader Command definition
-#define BL_GET_VER				      0x51
-#define BL_GET_HELP				      0x52
-#define BL_GET_CID				      0x53
-#define BL_GET_RDP_STATUS		    0x54
-#define BL_GO_TO_ADDR			      0x55
-#define BL_FLASH_ERASE          0x56
-#define BL_MEM_WRITE			      0x57
-#define BL_EN_RW_PROTECT		    0x58
-#define BL_MEM_READ				      0x59
-#define BL_READ_SECTOR_P_STATUS	0x5A
-#define BL_DIS_R_W_PROTECT			0x5C
+#define BL_GET_VER                    0x51
+#define BL_GET_HELP                   0x52
+#define BL_GET_CID                    0x53
+#define BL_GET_RDP_STATUS             0x54
+#define BL_GO_TO_ADDR                 0x55
+#define BL_FLASH_ERASE                0x56
+#define BL_MEM_WRITE                  0x57
+#define BL_EN_RW_PROTECT              0x58
+#define BL_MEM_READ                   0x59
+#define BL_READ_SECTOR_P_STATUS       0x5A
+#define BL_DIS_R_W_PROTECT            0x5C
 
 /* USER CODE END Private defines */
 
