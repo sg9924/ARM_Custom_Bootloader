@@ -715,6 +715,26 @@ uint16_t read_OB_rw_protection_status(void)
 	//return the R/W protection status of the sectors.
 	return (uint16_t)OBInit.WRPSector;
 }
+
+
+//11. execute memory write
+uint8_t execute_mem_write(uint8_t *pBuffer, uint32_t mem_address, uint32_t len)
+{
+    uint8_t status=HAL_OK;
+
+    //unlock flash
+    HAL_FLASH_Unlock();
+
+    for(uint32_t i = 0 ; i <len ; i++)
+    {
+      //write to flash memory byte by byte
+      status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_BYTE,mem_address+i,pBuffer[i] );
+    }
+
+    //lock flash
+    HAL_FLASH_Lock();
+    return status;
+}
 //Helper functions end
 	
 	
@@ -984,7 +1004,7 @@ void bootloader_handle_mem_write_cmd(uint8_t *pBuffer)
 
       HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);    //make LED pin high while writing to memory
       //Execute Memory Write
-      write_status = execute_mem_write(&pBuffer[7],mem_address, payload_len);
+      write_status = execute_mem_write(&pBuffer[7],mem_address, (uint32_t)payload_len);
       HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);  //make LED pin low after memory write operation is done
 
       //Send status of memory write operation to Host
