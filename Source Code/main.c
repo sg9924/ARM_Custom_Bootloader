@@ -692,6 +692,24 @@ uint8_t configure_flash_sector_rw_protection(uint8_t sector_details, uint8_t pro
   }
   return 0;
 }
+
+
+//10. get R/W protection status of Flash Sectors
+uint16_t read_OB_rw_protection_status(void)
+{
+  //HAl Structure type
+	FLASH_OBProgramInitTypeDef OBInit;
+
+	//1. Unlock the OB(Option Byte) memory access
+	HAL_FLASH_OB_Unlock();
+	//2. Get the OB configuration details
+	HAL_FLASHEx_OBGetConfig(&OBInit);
+	//3. Lock Back
+	HAL_FLASH_Lock();
+
+	//return the R/W protection status of the sectors.
+	return (uint16_t)OBInit.WRPSector;
+}
 //Helper functions end
 	
 	
@@ -1035,6 +1053,34 @@ void bootloader_handle_dis_rw_protect(uint8_t *pBuffer)
     print_msg("[Debug]: Flash Sector Disable R/W Protection Status -> %#x\n",status);
 
     bootloader_uart_write_data(&status,1);
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: Checksum Fail..\n");
+    bootloader_send_nack();
+	}
+}
+
+
+//10. Get R/W Protection status of Flash Sectors
+void bootloader_handle_read_sector_protection_status(uint8_t *pBuffer)
+{
+	 uint16_t status;
+	print_msg("[Debug]: bootloader_handle_read_sector_protection_status\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
+
+	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]: Checksum Success!!\n");
+    bootloader_send_ack(pBuffer[0],2);
+    status=read_OB_rw_protection_status();
+    print_msg("[Debug]: nWRP status: %#x\n",status);
+    bootloader_uart_write_data((uint8_t*)&status,2);
 	}
   else //CRC is a failure
 	{
