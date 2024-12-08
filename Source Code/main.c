@@ -523,7 +523,7 @@ uint8_t get_flash_rdp_level(void)
 	  rdp_status = (uint8_t)ob_handle.RDPLevel;
   #else
 	 volatile uint32_t *pOB_addr = (uint32_t*) 0x1FFFC000;
-	 rdp_status =  (uint8_t)(*pOB_addr >> 8) ;
+	 rdp_status =  (uint8_t)(*pOB_addr >> 8);
   #endif
 
 	return rdp_status;
@@ -542,10 +542,10 @@ uint8_t get_flash_rdp_level(void)
       print_msg("[Debug]: bootloader_handle_getver_cmd\n");
 
 	  //getting total length of the packet -> length to follow + 1
-	  uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+	  uint32_t command_packet_len = bl_rx_buffer[0]+1;
 
 	  //Extract CRC32 sent by the Host Application
-	  uint32_t host_crc = *((uint32_t*) (bl_rx_buffer + command_packet_len - 4)) ;
+	  uint32_t host_crc = *((uint32_t*) (bl_rx_buffer + command_packet_len - 4));
 
 		//CRC is successfull
     if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
@@ -578,10 +578,10 @@ void bootloader_handle_gethelp_cmd(uint8_t *pBuffer)
     print_msg("[Debug]: bootloader_handle_gethelp_cmd\n");
 
 	//getting total length of the packet -> length to follow + 1
-	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+	uint32_t command_packet_len = bl_rx_buffer[0]+1;
 
 	//Extract CRC32 sent by the Host Application
-	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4)) ;
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
 
   //CRC is successfull
 	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
@@ -611,10 +611,10 @@ void bootloader_handle_getcid_cmd(uint8_t *pBuffer)
 	print_msg("[Debug]: bootloader_handle_getcid_cmd\n");
 
   //getting total length of the packet -> length to follow + 1
-	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+	uint32_t command_packet_len = bl_rx_buffer[0]+1;
 
 	//Extract CRC32 sent by the Host Application
-	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4)) ;
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
 
 	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
@@ -647,10 +647,10 @@ void bootloader_handle_getrdp_cmd(uint8_t *pBuffer)
     print_msg("[Debug]: bootloader_handle_getrdp_cmd\n");
 
   //getting total length of the packet -> length to follow + 1
-	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+	uint32_t command_packet_len = bl_rx_buffer[0]+1;
 
 	//Extract CRC32 sent by the Host Application
-	uint32_t host_crc = *((uint32_t*)(bl_rx_buffer+command_packet_len - 4)) ;
+	uint32_t host_crc = *((uint32_t*)(bl_rx_buffer+command_packet_len - 4));
 
 	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
@@ -674,6 +674,64 @@ void bootloader_handle_getrdp_cmd(uint8_t *pBuffer)
     bootloader_send_nack();
 	}
 }
+
+
+//5. Go to Address Command
+void bootloader_handle_go_cmd(uint8_t *pBuffer)
+{
+    uint32_t go_address=0;
+    uint8_t addr_valid = ADDR_VALID;
+    uint8_t addr_invalid = ADDR_INVALID;
+
+    print_msg("[Debug]: bootloader_handle_go_cmd\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1;
+
+	///Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
+
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]:Checksum Success!!\n");
+
+    bootloader_send_ack(pBuffer[0],1);
+
+    //Extract the Go Address
+    go_address = *((uint32_t *)&pBuffer[2]);
+
+    print_msg("[Debug]: Go Address -> %#x\n",go_address);
+
+    if(verify_address(go_address) == ADDR_VALID)
+    {
+      //tell host that address is fine
+      bootloader_uart_write_data(&addr_valid,1);
+
+      /* Not doing the below line will result in hardfault exception for ARM cortex M */
+      go_address+=1; //make T bit=1
+
+      void (*jump)(void) = (void *)go_address;
+
+      print_msg("[Debug]: Jumping to Go Address..\n");
+
+      //Jumping to the Go Address
+      jump();
+		}
+    else
+		{
+      print_msg("[Debug]: Go Address is Invalid..\n");
+
+      //inform Host that Go Address is invalid
+      bootloader_uart_write_data(&addr_invalid,1);
+		}
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: Checksum Fail..\n");
+    bootloader_send_nack();
+	}
+}
+
 
 //Bootloader Command function end
 /* Custom Function Definitions End */
