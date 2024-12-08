@@ -598,7 +598,100 @@ uint8_t verify_address(uint32_t go_address)
 	else
 		return ADDR_INVALID;
 }
-	
+
+
+//9. Configure Flash R/W protection
+/*
+Modifying user option bytes sequence:
+1. Check for no ongoing Flash Memory Operation using the BSY bit in FLASH_SR register
+2. Write the desired option value in FLASH_OPTCR register.
+3. Set the option start bit (OPTSTRT) in FLASH_OPTCR register
+4. Wait for the BSY bit to be cleared.
+*/
+uint8_t configure_flash_sector_rw_protection(uint8_t sector_details, uint8_t protection_mode, uint8_t disable)
+{
+  //configure the protection mode
+  //protection_mode = 1 -> write protect of  user flash sectors
+  //protection_mode = 2 -> read/write protect of  user flash sectors
+  //For stm32f407xx, We have to modify the address 0x1FFF C008 bit 15(SPRMOD)
+
+	 //Flash option control register (OPTCR)
+  volatile uint32_t *pOPTCR = (uint32_t*) 0x40023C14;
+
+	if(disable)
+	{
+		//disable r/w protection on all sectors
+
+		//Option byte configuration unlock
+		HAL_FLASH_OB_Unlock();
+
+		//wait till no active operation on flash
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		//clear the 31st bit (default state)
+		*pOPTCR &= ~(1 << 31);
+		//clear the protection: make all bits belonging to sectors as 1
+		*pOPTCR |= (0xFF << 16);
+		//Set the option start bit (OPTSTRT) in the FLASH_OPTCR register
+		*pOPTCR |= ( 1 << 1);
+
+		//wait till no active operation on flash
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		HAL_FLASH_OB_Lock();
+		return 0;
+	}
+
+	if(protection_mode == (uint8_t) 1)
+  {
+    //write protection on the sectors encoded in sector_details argument
+
+		//Option byte configuration unlock
+		HAL_FLASH_OB_Unlock();
+
+		//wait till no active operation on flash
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		//here we are setting just write protection for the sectors
+		//clear the 31st bit
+		*pOPTCR &= ~(1 << 31);
+		//put write protection on sectors
+		*pOPTCR &= ~ (sector_details << 16);
+		//Set the option start bit (OPTSTRT) in the FLASH_OPTCR register
+		*pOPTCR |= ( 1 << 1);
+
+		//wait till no active operation on flash
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		HAL_FLASH_OB_Lock();
+	}
+	else if (protection_mode == (uint8_t) 2)
+  {
+	  //Option byte configuration unlock
+		HAL_FLASH_OB_Unlock();
+
+		//wait till no active operation on flash
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		//here wer are setting read and write protection for the sectors
+		//set the 31st bit
+		//please refer : Flash option control register (FLASH_OPTCR) in RM
+		*pOPTCR |= (1 << 31);
+
+		//put read and write protection on sectors
+    *pOPTCR &= ~(0xff << 16);
+		*pOPTCR |= (sector_details << 16);
+
+		//Set the option start bit (OPTSTRT) in the FLASH_OPTCR register
+		*pOPTCR |= ( 1 << 1);
+
+		//wait till no active operation on flash
+		while(__HAL_FLASH_GET_FLAG(FLASH_FLAG_BSY) != RESET);
+
+		HAL_FLASH_OB_Lock();
+  }
+  return 0;
+}
 //Helper functions end
 	
 	
@@ -882,6 +975,66 @@ void bootloader_handle_mem_write_cmd(uint8_t *pBuffer)
       //Inform Host that memory write address is invalid
       bootloader_uart_write_data(&write_status,1);
 		}
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: Checksum Fail..\n");
+    bootloader_send_nack();
+	}
+}
+
+
+//8. Enable read write protection command
+void bootloader_handle_en_rw_protect(uint8_t *pBuffer)
+{
+  uint8_t status = 0x00;
+  print_msg("[Debug]: bootloader_handle_en_rw_protect\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
+
+	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]: Checksum Success!!\n");
+    bootloader_send_ack(pBuffer[0],1);
+
+    status = configure_flash_sector_rw_protection(pBuffer[2],pBuffer[3],0);
+    print_msg("[Debug]: Flash Sector Enable R/W Protection Status -> %#x\n",status);
+    //send status to the Host
+    bootloader_uart_write_data(&status,1);
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: CHecksum Fail..\n");
+    bootloader_send_nack();
+	}
+}
+
+
+//9. Disable read write protection command
+void bootloader_handle_dis_rw_protect(uint8_t *pBuffer)
+{
+  uint8_t status = 0x00;
+  print_msg("[Debug]: bootloader_handle_dis_rw_protect\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
+
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]: Checksum Success!!\n");
+    bootloader_send_ack(pBuffer[0],1);
+
+    status = configure_flash_sector_rw_protection(0,0,1); //R/W protection will be disabled on all sectors -> so it doesn't matter which sector number you pass as argument
+    print_msg("[Debug]: Flash Sector Disable R/W Protection Status -> %#x\n",status);
+
+    bootloader_uart_write_data(&status,1);
 	}
   else //CRC is a failure
 	{
