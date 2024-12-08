@@ -54,8 +54,13 @@ UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
 uint8_t supported_commands[] = {
-                               BL_GET_VER ,
-                               BL_GET_HELP}
+                               BL_GET_VER,
+                               BL_GET_HELP,
+                               BL_GET_RDP_STATUS,
+                               BL_GO_TO_ADDR,
+                               BL_FLASH_ERASE,
+                               BL_MEM_WRITE,
+                               BL_READ_SECTOR_P_STATUS};
 
 /* USER CODE BEGIN PV */
 
