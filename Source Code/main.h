@@ -121,6 +121,7 @@ void Error_Handler(void);
 #define BL_EN_RW_PROTECT		    0x58
 #define BL_MEM_READ				      0x59
 #define BL_READ_SECTOR_P_STATUS	0x5A
+#define BL_DIS_R_W_PROTECT			0x5C
 
 /* USER CODE END Private defines */
 
