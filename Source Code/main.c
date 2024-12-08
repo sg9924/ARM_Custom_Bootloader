@@ -688,7 +688,7 @@ void bootloader_handle_go_cmd(uint8_t *pBuffer)
   //getting total length of the packet -> length to follow + 1
 	uint32_t command_packet_len = bl_rx_buffer[0]+1;
 
-	///Extract CRC32 sent by the Host Application
+	//Extract CRC32 sent by the Host Application
 	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
 
 	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
@@ -733,5 +733,39 @@ void bootloader_handle_go_cmd(uint8_t *pBuffer)
 }
 
 
+//6. Flash Erase Command
+void bootloader_handle_flash_erase_cmd(uint8_t *pBuffer)
+{
+  uint8_t erase_status = 0x00;
+  print_msg("[Debug]:bootloader_handle_flash_erase_cmd\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
+
+	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]: Checksum Success!!\n");
+    bootloader_send_ack(pBuffer[0],1);
+    print_msg("[Debug]: Initial Sector -> %d , No of Sectors -> %d\n",pBuffer[2],pBuffer[3]);
+
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin,1); //make LED pin high while erasing flash
+    //execute flash erase via HAL function
+    erase_status = execute_flash_erase(pBuffer[2], pBuffer[3]);
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin,0); //after erase operation is over, make LEd pin low
+
+    print_msg("[Debug]: Flash Erase Status -> %#x\n",erase_status);
+
+    //send flash erase status to Host
+    bootloader_uart_write_data(&erase_status,1);
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: Checksum Fail..\n");
+    bootloader_send_nack();
+	}
+}
 //Bootloader Command function end
 /* Custom Function Definitions End */
