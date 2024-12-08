@@ -117,7 +117,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	
 	/* If button is pressed -> go to bootloader, if not pressed -> go to user application */
-  if (HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin) == GPIO_PIN_RESET)
+  if(HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin) == GPIO_PIN_RESET)
   {
 	  print_msg("[Debug]: User Button is pressed -> Going into Bootloader....\n\r");
 
@@ -175,7 +175,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 50;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
   RCC_OscInitStruct.PLL.PLLQ = 7;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
@@ -189,7 +189,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -211,7 +211,7 @@ static void MX_CRC_Init(void)
 
   /* USER CODE END CRC_Init 1 */
   hcrc.Instance = CRC;
-  if (HAL_CRC_Init(&hcrc) != HAL_OK)
+  if(HAL_CRC_Init(&hcrc) != HAL_OK)
   {
     Error_Handler();
   }
@@ -244,7 +244,7 @@ static void MX_USART2_UART_Init(void)
   huart2.Init.Mode = UART_MODE_TX_RX;
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
+  if(HAL_UART_Init(&huart2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -277,7 +277,7 @@ static void MX_USART3_UART_Init(void)
   huart3.Init.Mode = UART_MODE_TX_RX;
   huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart3) != HAL_OK)
+  if(HAL_UART_Init(&huart3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -458,7 +458,7 @@ void bootloader_jump_to_user_app(void)
 //1. Verify CRC
 uint8_t bootloader_verify_crc(uint8_t *pData, uint32_t len, uint32_t crc_host)
 {
-    uint32_t uwCRCValue=0xff;
+    uint32_t uwCRCValue=0xFF;
 
 		//accumulate each CRC byte
     for(uint32_t i=0; i<len; i++)
@@ -528,6 +528,76 @@ uint8_t get_flash_rdp_level(void)
 
 	return rdp_status;
 }
+
+
+//7. execute flash erase
+uint8_t execute_flash_erase(uint8_t sector_number , uint8_t number_of_sector)
+{
+  //8 sectors in stm32f407 -> sector[0 to 7]
+	//sector_number = 0xFF -> Mass Erase!
+
+	FLASH_EraseInitTypeDef flashErase_handle;
+	uint32_t sectorError;
+	HAL_StatusTypeDef status;
+
+
+	if(number_of_sector > 8)
+		return INVALID_SECTOR;
+
+	if((sector_number == 0xFF) || (sector_number <= 7))
+	{
+		if(sector_number == (uint8_t) 0xFF)
+		{
+			flashErase_handle.TypeErase = FLASH_TYPEERASE_MASSERASE;  //setting up erase type in HAL Flash Handle
+		}
+    else
+		{
+			uint8_t remanining_sector = 8 - sector_number;
+      if(number_of_sector > remanining_sector)
+        number_of_sector = remanining_sector;
+
+			flashErase_handle.TypeErase = FLASH_TYPEERASE_SECTORS;
+			flashErase_handle.Sector = sector_number; //initial sector
+			flashErase_handle.NbSectors = number_of_sector;
+		}
+
+		flashErase_handle.Banks = FLASH_BANK_1;
+
+		HAL_FLASH_Unlock();
+		flashErase_handle.VoltageRange = FLASH_VOLTAGE_RANGE_3;  //Flash Voltage Range for stm32f407
+		status = (uint8_t) HAL_FLASHEx_Erase(&flashErase_handle, &sectorError);
+		HAL_FLASH_Lock();
+
+		return status;
+	}
+	return INVALID_SECTOR;
+}
+
+
+//8. verify address
+uint8_t verify_address(uint32_t go_address)
+{
+	//we allow jumping to system, sram1, srma2, backup sram, external memory but not peripheral emmory
+
+	if(go_address >= SRAM1_BASE && go_address <= SRAM1_END)
+	{
+		return ADDR_VALID;
+	}
+	else if(go_address >= SRAM2_BASE && go_address <= SRAM2_END)
+	{
+		return ADDR_VALID;
+	}
+	else if(go_address >= FLASH_BASE && go_address <= FLASH_END)
+	{
+		return ADDR_VALID;
+	}
+	else if(go_address >= BKPSRAM_BASE && go_address <= BKPSRAM_END)
+	{
+		return ADDR_VALID;
+	}
+	else
+		return ADDR_INVALID;
+}
 	
 //Helper functions end
 	
@@ -548,7 +618,7 @@ uint8_t get_flash_rdp_level(void)
 	  uint32_t host_crc = *((uint32_t*) (bl_rx_buffer + command_packet_len - 4));
 
 		//CRC is successfull
-    if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+    if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
     {
         print_msg("[Debug]: Checksum Success!!\n");
         //Sending ACK as checksum is correct
@@ -584,14 +654,14 @@ void bootloader_handle_gethelp_cmd(uint8_t *pBuffer)
 	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
 
   //CRC is successfull
-	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
     print_msg("[Debug]: Checksum Success!!\n");
     //Sending ACK as checksum is correct
     bootloader_send_ack(pBuffer[0],sizeof(supported_commands));
 
     //send the supported Bootloader commands to the Host Application
-    bootloader_uart_write_data(supported_commands,sizeof(supported_commands) );
+    bootloader_uart_write_data(supported_commands,sizeof(supported_commands));
 
 	}
   else //CRC is a failure
@@ -616,7 +686,7 @@ void bootloader_handle_getcid_cmd(uint8_t *pBuffer)
 	//Extract CRC32 sent by the Host Application
 	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
 
-	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
     print_msg("[Debug]: Checksum Success!!\n");
     //Sending ACK as checksum is correct
@@ -652,7 +722,7 @@ void bootloader_handle_getrdp_cmd(uint8_t *pBuffer)
 	//Extract CRC32 sent by the Host Application
 	uint32_t host_crc = *((uint32_t*)(bl_rx_buffer+command_packet_len - 4));
 
-	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
     print_msg("[Debug]: Checksum Success!!\n");
     //Sending ACK as checksum is correct
@@ -694,12 +764,10 @@ void bootloader_handle_go_cmd(uint8_t *pBuffer)
 	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
     print_msg("[Debug]:Checksum Success!!\n");
-
     bootloader_send_ack(pBuffer[0],1);
 
     //Extract the Go Address
     go_address = *((uint32_t *)&pBuffer[2]);
-
     print_msg("[Debug]: Go Address -> %#x\n",go_address);
 
     if(verify_address(go_address) == ADDR_VALID)
@@ -711,7 +779,6 @@ void bootloader_handle_go_cmd(uint8_t *pBuffer)
       go_address+=1; //make T bit=1
 
       void (*jump)(void) = (void *)go_address;
-
       print_msg("[Debug]: Jumping to Go Address..\n");
 
       //Jumping to the Go Address
@@ -720,7 +787,6 @@ void bootloader_handle_go_cmd(uint8_t *pBuffer)
     else
 		{
       print_msg("[Debug]: Go Address is Invalid..\n");
-
       //inform Host that Go Address is invalid
       bootloader_uart_write_data(&addr_invalid,1);
 		}
@@ -745,7 +811,7 @@ void bootloader_handle_flash_erase_cmd(uint8_t *pBuffer)
 	//Extract CRC32 sent by the Host Application
 	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
 
-	if (!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
 	{
     print_msg("[Debug]: Checksum Success!!\n");
     bootloader_send_ack(pBuffer[0],1);
@@ -760,6 +826,62 @@ void bootloader_handle_flash_erase_cmd(uint8_t *pBuffer)
 
     //send flash erase status to Host
     bootloader_uart_write_data(&erase_status,1);
+	}
+  else //CRC is a failure
+	{
+    print_msg("[Debug]: Checksum Fail..\n");
+    bootloader_send_nack();
+	}
+}
+
+
+//7. Memory Write Command
+void bootloader_handle_mem_write_cmd(uint8_t *pBuffer)
+{
+	uint8_t addr_valid = ADDR_VALID;
+	uint8_t write_status = 0x00;
+	uint8_t chksum =0, len=0;
+	len = pBuffer[0];
+	uint8_t payload_len = pBuffer[6];
+
+	uint32_t mem_address = *((uint32_t *) (&pBuffer[2]));
+
+	chksum = pBuffer[len];
+
+  print_msg("[Debug]:bootloader_handle_mem_write_cmd\n");
+
+  //getting total length of the packet -> length to follow + 1
+	uint32_t command_packet_len = bl_rx_buffer[0]+1 ;
+
+	//Extract CRC32 sent by the Host Application
+	uint32_t host_crc = *((uint32_t*) (bl_rx_buffer+command_packet_len - 4));
+
+	if(!bootloader_verify_crc(&bl_rx_buffer[0],command_packet_len-4,host_crc))
+	{
+    print_msg("[Debug]: Checksum Success!!\n");
+    bootloader_send_ack(pBuffer[0],1);
+    print_msg("[Debug]: Memory Write Address -> %#x\n",mem_address);
+
+		if(verify_address(mem_address) == ADDR_VALID)
+		{
+      print_msg("[Debug]: Valid Memory Write Address\n");
+
+      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);    //make LED pin high while writing to memory
+      //Execute Memory Write
+      write_status = execute_mem_write(&pBuffer[7],mem_address, payload_len);
+      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);  //make LED pin low after memory write operation is done
+
+      //Send status of memory write operation to Host
+      bootloader_uart_write_data(&write_status,1);
+		}
+    else
+		{
+      print_msg("[Debug]: Invalid Memory Write Address..n");
+      write_status = ADDR_INVALID;
+
+      //Inform Host that memory write address is invalid
+      bootloader_uart_write_data(&write_status,1);
+		}
 	}
   else //CRC is a failure
 	{
